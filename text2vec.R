@@ -94,5 +94,25 @@ s2 <- Sys.time()
 s2 - s1
 #######################################################################################
 ## After all this cleansing, you can start the vocab with text2vec
+## When you tokenize, take in account that "<eos>" is a separator
+library(text2vec)
+library(data.table)
+library(foreach)
+library(doParallel)   
 
-       
+tok_fun = word_tokenizer
+
+it_train = itoken(word_tokenizer(tokenize_regex(d, "<eos>")), progressbar = TRUE)
+vocab = create_vocabulary(it_train, ngram = c(ngram_min = 2L, ngram_max = 2L))
+
+tokenize_sentences(d, lowercase = FALSE, strip_punctuation = FALSE,
+                   simplify = FALSE)
+#######################################################################################
+s1 <- Sys.time()
+final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("text2vec")) %dopar% {
+        splitsn <- as.vector(splits[[i]])
+        vocab <- create_vocabulary()
+        
+}
+s2 <- Sys.time()
+s2 - s1
