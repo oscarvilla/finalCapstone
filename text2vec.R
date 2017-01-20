@@ -55,14 +55,14 @@ rm(list = ls())
 setwd("~/Documents/finalCapstone/datasets/train") # getting one level up
 ## Thanks to Gerald Gendron for this cleaning text, you can see all his job in
 ## http://www.linkedin.com/in/jaygendron/
-
-######################################################################################
 twitter <- readLines("./ttt.txt")
 library(text2vec)
 ## Here can star a function which takes the text as arg, then split it in chunks and cleaning it up
 splits <- split_into(twitter, 100)
 library(foreach)
 library(doParallel)
+cl <- makeCluster(3)
+registerDoParallel(cl)
 library(tm)
 
 s1 <- Sys.time()
@@ -84,7 +84,7 @@ final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("tm")) %dop
         df <- gsub("\\' ", " ", df)
         df <- gsub(" ' ", " ", df)
         df <- gsub("<[^EOS].+>"," ", df)
-        df <- gsub("[0-9]+"," <NUM> ", df)
+        df <- gsub("[0-9]+"," ", df)
         df <- gsub("<>"," ", df)
         df <- gsub("#", " ", df)
         df <- gsub("RT", " ", df)
@@ -95,6 +95,25 @@ s2 - s1
 #######################################################################################
 ## After all this cleansing, you can start the vocab with text2vec
 ## When you tokenize, take in account that "<eos>" is a separator
+EOS <- strsplit(df, "<eos>")
+EOS <- unlist(EOS)
+
+splits <- split_into(EOS, 100)
+library(foreach)
+library(doParallel)
+library(tm)
+
+s1 <- Sys.time()
+final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("tm")) %dopar% {
+        splitsn <- as.vector(splits[[i]])
+        df <- sub("^\\s+", "", splitsn)
+        df <- sub("\\s+$", "", df)
+        df <- gsub("^\\s+|\\s+$", "", df)
+}
+s2 <- Sys.time()
+s2 - s1
+final <- final[grepl(" ", final)]
+#######################################################################################
 library(text2vec)
 library(data.table)
 library(foreach)
@@ -102,11 +121,8 @@ library(doParallel)
 
 tok_fun = word_tokenizer
 
-it_train = itoken(word_tokenizer(tokenize_regex(d, "<eos>")), progressbar = TRUE)
-vocab = create_vocabulary(it_train, ngram = c(ngram_min = 2L, ngram_max = 2L))
-
-tokenize_sentences(d, lowercase = FALSE, strip_punctuation = FALSE,
-                   simplify = FALSE)
+it_train = itoken(tokenize_regex(d, "<eos>"), progressbar = TRUE)
+vocab = create_vocabulary(it_train, ngram = c(ngram_min = 1L, ngram_max = 1L))
 #######################################################################################
 s1 <- Sys.time()
 final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("text2vec")) %dopar% {
