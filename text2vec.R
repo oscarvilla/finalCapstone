@@ -52,83 +52,97 @@ write(bms, "./bms.txt")
 rm(list = ls())
 ######################################################################################
 ## Cleaning the data
-setwd("~/Documents/finalCapstone/datasets/train") # getting one level up
 ## Thanks to Gerald Gendron for this cleaning text, you can see all his job in
 ## http://www.linkedin.com/in/jaygendron/
-twitter <- readLines("./ttt.txt")
-library(text2vec)
-## Here can star a function which takes the text as arg, then split it in chunks and cleaning it up
-splits <- split_into(twitter, 100)
-library(foreach)
-library(doParallel)
-cl <- makeCluster(3)
-registerDoParallel(cl)
-library(tm)
+## Here is a function which takes the text as arg, then split it in chunks and cleaning it up
+cleaner <- function(x){
+        ## This is the principal function
+        library(text2vec)
+        ## Split the data set in chunks for parallelization
+        splits <- split_into(x, 100)
+        ## Load required libraries for parallelization
+        library(foreach)
+        library(doParallel)
+        ## Activate 3 clusters for parallelizing
+        cl <- makeCluster(3)
+        registerDoParallel(cl)
+        library(tm)
+        final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("tm")) %dopar% {
+                ## The splitted as vector
+                splitsn <- as.vector(splits[[i]])
+                ## Replace some strings
+                df <- gsub("-", " ", splitsn)
+                df <- gsub("/", " ", df)
+                df <- gsub("<>", "\\'", df)
+                df <- gsub("\\. |\\.$","  <EOS> ", df)
+                df <- gsub("\\? |\\?$","  <EOS> ", df)
+                df <- gsub("\\! |\\!$","  <EOS> ", df)
+                df <- gsub("<85>"," <EOS> ", df)
+                df <- gsub("<92>","'", df)
+                df <- gsub("\\&", " and ", df)
+                df <- gsub("[^[:alnum:][:space:]\'<>]", " ", df)
+                df <- gsub(" www(.+) ", " ", df)
+                df <- gsub(" [b-hj-z] "," ", df)
+                df <- gsub(" ' "," ", df)        
+                df <- gsub("\\' ", " ", df)
+                df <- gsub(" ' ", " ", df)
+                df <- gsub("<[^EOS].+>"," ", df)
+                df <- gsub("[0-9]+"," ", df)
+                df <- gsub("<>"," ", df)
+                df <- gsub("#", " ", df)
+                df <- gsub("RT", " ", df)
+                df <- tolower(df)
+        }
+        ## splitting into sentences by <eos> marker
+        EOS <- strsplit(final, "<eos>")
+        ## Makint it all a text vector
+        EOS <- unlist(EOS)
+        ## Split in chunks for parallelizing (again)
+        splits <- split_into(EOS, 100)
+        library(foreach)
+        library(doParallel)
+        library(tm)
 
-s1 <- Sys.time()
-final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("tm")) %dopar% {
+        final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("tm")) %dopar% {
         splitsn <- as.vector(splits[[i]])
-        df <- gsub("-", " ", splitsn)
-        df <- gsub("/", " ", df)
-        df <- gsub("<>", "\\'", df)
-        df <- gsub("\\. |\\.$","  <EOS> ", df)
-        df <- gsub("\\? |\\?$","  <EOS> ", df)
-        df <- gsub("\\! |\\!$","  <EOS> ", df)
-        df <- gsub("<85>"," <EOS> ", df)
-        df <- gsub("<92>","'", df)
-        df <- gsub("\\&", " and ", df)
-        df <- gsub("[^[:alnum:][:space:]\'<>]", " ", df)
-        df <- gsub(" www(.+) ", " ", df)
-        df <- gsub(" [b-hj-z] "," ", df)
-        df <- gsub(" ' "," ", df)        
-        df <- gsub("\\' ", " ", df)
-        df <- gsub(" ' ", " ", df)
-        df <- gsub("<[^EOS].+>"," ", df)
-        df <- gsub("[0-9]+"," ", df)
-        df <- gsub("<>"," ", df)
-        df <- gsub("#", " ", df)
-        df <- gsub("RT", " ", df)
-        df <- tolower(df)
-}
-s2 <- Sys.time()
-s2 - s1
-#######################################################################################
-## After all this cleansing, you can start the vocab with text2vec
-## When you tokenize, take in account that "<eos>" is a separator
-EOS <- strsplit(df, "<eos>")
-EOS <- unlist(EOS)
-
-splits <- split_into(EOS, 100)
-library(foreach)
-library(doParallel)
-library(tm)
-
-s1 <- Sys.time()
-final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("tm")) %dopar% {
-        splitsn <- as.vector(splits[[i]])
+        ## Removing some extra spaces
         df <- sub("^\\s+", "", splitsn)
         df <- sub("\\s+$", "", df)
         df <- gsub("^\\s+|\\s+$", "", df)
+        df <- gsub("\\s+", " ", df)
+        }
+        final <- final[grepl(" ", final)]
 }
-s2 <- Sys.time()
-s2 - s1
-final <- final[grepl(" ", final)]
-#######################################################################################
-library(text2vec)
-library(data.table)
-library(foreach)
-library(doParallel)   
+## Setting path to the training files dir
+setwd("~/Documents/finalCapstone/datasets/train") # getting one level up
 
-tok_fun = word_tokenizer
-
-it_train = itoken(tokenize_regex(d, "<eos>"), progressbar = TRUE)
-vocab = create_vocabulary(it_train, ngram = c(ngram_min = 1L, ngram_max = 1L))
+df <- cleaner(readLines("./ttt.txt"))
+saveRDS(df1, "./tRDS")
+df <- cleaner(readLines("./bbt.txt"))
+saveRDS(df, "./bRDS")
+df <- cleaner(readLines("./nnt.txt"))
+saveRDS(df, "./nRDS")
 #######################################################################################
-s1 <- Sys.time()
-final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("text2vec")) %dopar% {
-        splitsn <- as.vector(splits[[i]])
-        vocab <- create_vocabulary()
-        
+## Now will construct a vocab (token counts) for each training set, because we really don need a
+## dtm or something like that. Also, the vocab it's computationally cheaper.
+
+countTokens <- function(x, n){
+        library(text2vec)
+        tok_fun = word_tokenizer
+        it_train = itoken(x, tokenizer = tok_fun, progressbar = TRUE)
+        vocab = create_vocabulary(it_train, ngram = c(ngram_min = n, ngram_max = n))
 }
-s2 <- Sys.time()
-s2 - s1
+
+setwd("~/Documents/finalCapstone/datasets/train")
+x <- readRDS("./tRDS")
+
+v <- countTokens(x, 2)
+saveRDS(v$vocab[, 1:2], "./t1gRDS")
+
+v <- countTokens(x, 3)
+saveRDS(v$vocab[, 1:2], "./t2gRDS")
+
+
+head(setorder(v$vocab, -terms_counts))
+tail(setorder(vocab$vocab, -terms_counts))
+#######################################################################################
