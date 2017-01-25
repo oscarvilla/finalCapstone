@@ -85,7 +85,6 @@ cleaner <- function(x){
                 df <- gsub(" [b-hj-z] "," ", df)
                 df <- gsub(" ' "," ", df)        
                 df <- gsub("\\' ", " ", df)
-                df <- gsub(" ' ", " ", df)
                 df <- gsub("<[^EOS].+>"," ", df)
                 df <- gsub("[0-9]+"," ", df)
                 df <- gsub("<>"," ", df)
@@ -114,10 +113,10 @@ cleaner <- function(x){
         final <- final[grepl(" ", final)]
 }
 ## Setting path to the training files dir
-setwd("~/Documents/finalCapstone/datasets/train") # getting one level up
+setwd("~/Documents/finalCapstone/datasets/train")
 
 df <- cleaner(readLines("./ttt.txt"))
-saveRDS(df1, "./tRDS")
+saveRDS(df, "./tRDS")
 df <- cleaner(readLines("./bbt.txt"))
 saveRDS(df, "./bRDS")
 df <- cleaner(readLines("./nnt.txt"))
@@ -128,7 +127,7 @@ saveRDS(df, "./nRDS")
 
 countTokens <- function(x, n){
         library(text2vec)
-        tok_fun = word_tokenizer
+        tok_fun = space_tokenizer
         it_train = itoken(x, tokenizer = tok_fun, progressbar = TRUE)
         vocab = create_vocabulary(it_train, ngram = c(ngram_min = n, ngram_max = n))
 }
@@ -142,7 +141,11 @@ saveRDS(v$vocab[, 1:2], "./t1gRDS")
 v <- countTokens(x, 3)
 saveRDS(v$vocab[, 1:2], "./t2gRDS")
 
+v <- countTokens(x, 4)
+saveRDS(v$vocab[, 1:2], "./t3gRDS")
 
+
+library(data.table)
 head(setorder(v$vocab, -terms_counts))
-tail(setorder(vocab$vocab, -terms_counts))
+tail(setorder(v$vocab, -terms_counts))
 #######################################################################################
