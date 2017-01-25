@@ -131,7 +131,9 @@ countTokens <- function(x, n){
         it_train = itoken(x, tokenizer = tok_fun, progressbar = TRUE)
         vocab = create_vocabulary(it_train, ngram = c(ngram_min = n, ngram_max = n))
 }
-
+## It could looks like a ugly way to do it, but I don't code a loop because I've to restart RStudio
+## each time to free RAM
+## Twitter n-grams
 setwd("~/Documents/finalCapstone/datasets/train")
 x <- readRDS("./tRDS")
 
@@ -144,6 +146,31 @@ saveRDS(v$vocab[, 1:2], "./t2gRDS")
 v <- countTokens(x, 4)
 saveRDS(v$vocab[, 1:2], "./t3gRDS")
 
+## Blogs n-grams
+setwd("~/Documents/finalCapstone/datasets/train")
+x <- readRDS("./bRDS")
+
+v <- countTokens(x, 2)
+saveRDS(v$vocab[, 1:2], "./b1gRDS")
+
+v <- countTokens(x, 3)
+saveRDS(v$vocab[, 1:2], "./b2gRDS")
+
+v <- countTokens(x, 4)
+saveRDS(v$vocab[, 1:2], "./b3gRDS")
+
+## News n-grams
+setwd("~/Documents/finalCapstone/datasets/train")
+x <- readRDS("./nRDS")
+
+v <- countTokens(x, 2)
+saveRDS(v$vocab[, 1:2], "./n1gRDS")
+
+v <- countTokens(x, 3)
+saveRDS(v$vocab[, 1:2], "./n2gRDS")
+
+v <- countTokens(x, 4)
+saveRDS(v$vocab[, 1:2], "./n3gRDS")
 
 library(data.table)
 head(setorder(v$vocab, -terms_counts))
