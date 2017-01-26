@@ -200,6 +200,17 @@ b1$cumPerc <- cumsum(b1$perc)
 n1$perc <- n1$terms_counts / sum(n1$terms_counts)
 n1$cumPerc <- cumsum(n1$perc)
 
+
+all1 <- rbind(t1, b1, n1)
+nrow(all1)
+all1 <- all1[, .(total = sum(terms_counts)), by = .(terms)]
+nrow(all1)
+## Plotting percentages and cumulative oercentages
+
+plot(t1$cumPerc[1:500000])
+plot(b1$cumPerc[1:500000])
+plot(n1$cumPerc[1:500000])
+
 ## More and less frequent tokens
 plot(head(setorder(t1, -terms_counts), 20)$cumPerc); head(setorder(b1, -terms_counts), 20); head(setorder(n1, -terms_counts), 20)
 tail(setorder(t1, -terms_counts), 20); tail(setorder(b1, -terms_counts), 20); tail(setorder(n1, -terms_counts), 20)
