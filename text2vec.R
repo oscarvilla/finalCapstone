@@ -171,8 +171,61 @@ saveRDS(v$vocab[, 1:2], "./n2gRDS")
 
 v <- countTokens(x, 4)
 saveRDS(v$vocab[, 1:2], "./n3gRDS")
-
+#######################################################################################
+## Exploratory data analysis
 library(data.table)
-head(setorder(v$vocab, -terms_counts))
-tail(setorder(v$vocab, -terms_counts))
+## 1grams
+setwd("~/Documents/finalCapstone/datasets/train")
+t1 <- as.data.table(readRDS("./t1gRDS"))
+b1 <- as.data.table(readRDS("./b1gRDS"))
+n1 <- as.data.table(readRDS("./n1gRDS"))
+## We need to sort the datatable before to make some variables featuring
+t1 <- setorder(t1, -terms_counts)
+b1 <- setorder(b1, -terms_counts)
+n1 <- setorder(n1, -terms_counts)
+
+sizeObj <- data.frame(obj = c("t1", "b1", "n1"), 
+                      ntokens = c(dim(t1)[1], dim(b1)[1], dim(n1)[1]), 
+                      size = c(format(object.size(t1), units = "Mb"), 
+                               format(object.size(b1), units = "Mb"), 
+                               format(object.size(n1), units = "Mb")))
+sizeObj
+## Featuring the percentage and the cumulative percentage
+t1$perc <- t1$terms_counts / sum(t1$terms_counts)
+t1$cumPerc <- cumsum(t1$perc)
+
+b1$perc <- b1$terms_counts / sum(b1$terms_counts)
+b1$cumPerc <- cumsum(b1$perc)
+
+n1$perc <- n1$terms_counts / sum(n1$terms_counts)
+n1$cumPerc <- cumsum(n1$perc)
+
+## More and less frequent tokens
+plot(head(setorder(t1, -terms_counts), 20)$cumPerc); head(setorder(b1, -terms_counts), 20); head(setorder(n1, -terms_counts), 20)
+tail(setorder(t1, -terms_counts), 20); tail(setorder(b1, -terms_counts), 20); tail(setorder(n1, -terms_counts), 20)
+
+library(ggplot2)
+
+
+
+
+
+
+#######################################################################################
+t2 <- readRDS("./t2gRDS")
+t3 <- readRDS("./t3gRDS")
+sizeObj <- data.frame(obj = c("t1", "t2", "t3"), 
+                      size = c(format(object.size(t1), units = "Mb"), 
+                               format(object.size(b), units = "Mb"), 
+                               format(object.size(t3), units = "Mb")))
+sizeObj
+library(data.table)
+head(setorder(t2, -terms_counts))
+tail(setorder(t2, -terms_counts))
+#######################################################################################
+## Shows the first element of each bigram
+unlist(strsplit(t1$terms[1:10], "_"))[seq(1, 19, 2)]
+## With the first one can make a datatable sd and keep the three more frecuent of each first element
+## Shows the second element of each bigram
+unlist(strsplit(t1$terms[1:10], "_"))[seq(2, 20, 2)]
 #######################################################################################
