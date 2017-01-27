@@ -224,6 +224,8 @@ bigram$t1 <- t1
 ## 3. 
 bigramPruned <- bigram[, head(.SD, 3), by = t1]
 bigramPruned <- bigramPruned[order(bigramPruned$terms)]
+head(bigramPruned)
+dim(bigramPruned)[1] / dim(bigram)[1]
 ## Plotting percentages and cumulative oercentages
 
 plot(t1$cumPerc[1:500000])
