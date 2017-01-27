@@ -174,15 +174,11 @@ saveRDS(v$vocab[, 1:2], "./n3gRDS")
 #######################################################################################
 ## Exploratory data analysis
 library(data.table)
-## 1grams
+## Bigrams
 setwd("~/Documents/finalCapstone/datasets/train")
 t1 <- as.data.table(readRDS("./t1gRDS"))
 b1 <- as.data.table(readRDS("./b1gRDS"))
 n1 <- as.data.table(readRDS("./n1gRDS"))
-## We need to sort the datatable before to make some variables featuring
-t1 <- setorder(t1, -terms_counts)
-b1 <- setorder(b1, -terms_counts)
-n1 <- setorder(n1, -terms_counts)
 
 sizeObj <- data.frame(obj = c("t1", "b1", "n1"), 
                       ntokens = c(dim(t1)[1], dim(b1)[1], dim(n1)[1]), 
@@ -191,20 +187,43 @@ sizeObj <- data.frame(obj = c("t1", "b1", "n1"),
                                format(object.size(n1), units = "Mb")))
 sizeObj
 ## Featuring the percentage and the cumulative percentage
-t1$perc <- t1$terms_counts / sum(t1$terms_counts)
-t1$cumPerc <- cumsum(t1$perc)
+featuring <- function(x){
+        x <- setorder(x, -terms_counts)
+        x$perc <- x$terms_counts / sum(x$terms_counts)
+        x$cumPerc <- cumsum(x$perc)
+        return(x)
+}
+t1 <- featuring(t1)
+b1 <- featuring(b1)
+n1 <- featuring(n1)
+## Plotting some basics about the separate bigrams
+library(ggplot2)
+ggplot(t1[1:20, ], aes(x = reorder(terms, -terms_counts), y = terms_counts)) + geom_bar(stat = "identity")
+ggplot(b1[1:20, ], aes(x = reorder(terms, -terms_counts), y = terms_counts)) + geom_bar(stat = "identity")
+ggplot(n1[1:20, ], aes(x = reorder(terms, -terms_counts), y = terms_counts)) + geom_bar(stat = "identity")
+## Let's get bind all the tokens and summarise to get the total number of times each token appears.
+bindup <- function(x, y, z){
+allOne <- rbind(x, y, z)
+print(paste("Initial number of tokens:", nrow(allOne), sep = " "))
+allOne <- allOne[, .(total = sum(terms_counts)), by = .(terms)]
+print(paste("Final number of tokens:", nrow(allOne), sep = " "))
+allOne <- setorder(allOne, -total)
+allOne$perc <- allOne$total / sum(allOne$total)
+allOne$cumPerc <- cumsum(allOne$perc)
+return(allOne)
+}
 
-b1$perc <- b1$terms_counts / sum(b1$terms_counts)
-b1$cumPerc <- cumsum(b1$perc)
-
-n1$perc <- n1$terms_counts / sum(n1$terms_counts)
-n1$cumPerc <- cumsum(n1$perc)
+bigram <- bindup(t1, b1, n1)
+ggplot(bigram[1:20, ], aes(x = reorder(terms, -total), y = total)) + geom_bar(stat = "identity")
 
 
-all1 <- rbind(t1, b1, n1)
-nrow(all1)
-all1 <- all1[, .(total = sum(terms_counts)), by = .(terms)]
-nrow(all1)
+## 1. split the tokens with strsplit
+## 2. Take the first part 
+t1 <- unlist(strsplit(bigram$terms, "_"))[seq(1, dim(bigram)[1] * 2 - 1, 2)]
+bigram$t1 <- t1
+## 3. 
+bigramPruned <- bigram[, head(.SD, 3), by = t1]
+bigramPruned <- bigramPruned[order(bigramPruned$terms)]
 ## Plotting percentages and cumulative oercentages
 
 plot(t1$cumPerc[1:500000])
