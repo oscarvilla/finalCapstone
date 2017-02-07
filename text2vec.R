@@ -5,8 +5,11 @@ twitter <- twitter[-c(167155, 268547, 1274086, 1759032)]
 news <- readLines("/home/oscar/Documents/DSSCapstone/en_US/en_US.news.txt")
 blogs <- readLines("/home/oscar/Documents/DSSCapstone/en_US/en_US.blogs.txt")
 ## Subsampling the texts
-## Assuming there are not a order in the recopilation or scrapping of the texts, I'll split each one of the
-## text data sets in three parts: 60% for train the model, 20% for tunning the model and 20% for measure
+## Assuming there are not an order in the recopilation or scrapping of the texts, I'll split each one
+## of the text data sets in three parts: 
+## 60% for train the model, 
+## 20% for tunning the model and 
+## 20% for measure
 
 ## ttt for twitter train, ttm for twitter model tunning and tms for twitter measure
 train <- c(1, round(length(twitter) * 0.6, 0))
@@ -34,8 +37,11 @@ nnm <- news[tunning[1]:tunning[2]]
 nms <- news[measure[1]:measure[2]]
 
 ## Saving the files and cleaning the enviroment
-## The ones for training
+
+## Then, let's go with the ones for training
+## First, go to the dir
 setwd("~/Documents/finalCapstone/datasets/train")
+## Save the sample
 write(ttt, "./ttt.txt")
 write(bbt, "./bbt.txt")
 write(nnt, "./nnt.txt")
@@ -52,21 +58,27 @@ write(bms, "./bms.txt")
 rm(list = ls())
 ######################################################################################
 ## Cleaning the data
-## Thanks to Gerald Gendron for this cleaning text, you can see all his job in
-## http://www.linkedin.com/in/jaygendron/
-## Here is a function which takes the text as arg, then split it in chunks and cleaning it up
+## Thanks to Gerald Gendron (http://www.linkedin.com/in/jaygendron/) for all the gsub applications 
+## for get a really cleaning text. You can see all his job in 
+## https://github.com/jgendron/datasciencecoursera
+## Here we got a function which takes the text as argument, and then split it in chunks and cleaning 
+## it up. Because of the time it takes to clean the data and the RAM consumption, it's necessary to 
+## parallelize the code; even when the process got already faster with text2vec library. 
+## Thanks to Dmitriy Selivanov, what a great package.
+## You can find all about on http://text2vec.org/ or on https://github.com/dselivanov/text2vec
 cleaner <- function(x){
-        ## This is the principal function
+        ## This is the principal library
         library(text2vec)
-        ## Split the data set in chunks for parallelization
+        ## This library also allow us to split the data set in several chunks for parallelization
         splits <- split_into(x, 100)
         ## Load required libraries for parallelization
         library(foreach)
         library(doParallel)
-        ## Activate 3 clusters for parallelizing
+        ## Activate 3 clusters for parallelizing the work
         cl <- makeCluster(3)
         registerDoParallel(cl)
         library(tm)
+        ## This is the loop parallelized
         final <- foreach(i=1:length(splits), .combine = rbind, .packages = c("tm")) %dopar% {
                 ## The splitted as vector
                 splitsn <- as.vector(splits[[i]])
@@ -94,7 +106,7 @@ cleaner <- function(x){
         }
         ## splitting into sentences by <eos> marker
         EOS <- strsplit(final, "<eos>")
-        ## Makint it all a text vector
+        ## Making it all a text vector
         EOS <- unlist(EOS)
         ## Split in chunks for parallelizing (again)
         splits <- split_into(EOS, 100)
@@ -114,7 +126,7 @@ cleaner <- function(x){
 }
 ## Setting path to the training files dir
 setwd("~/Documents/finalCapstone/datasets/train")
-
+## Finally save the data cleaned.
 df <- cleaner(readLines("./ttt.txt"))
 saveRDS(df, "./tRDS")
 df <- cleaner(readLines("./bbt.txt"))
@@ -122,54 +134,60 @@ saveRDS(df, "./bRDS")
 df <- cleaner(readLines("./nnt.txt"))
 saveRDS(df, "./nRDS")
 #######################################################################################
-## Now will construct a vocab (token counts) for each training set, because we really don need a
-## dtm or something like that. Also, the vocab it's computationally cheaper.
+## Now will construct a text2vec vocabulary (token counts) for each training set.
+## I found so usefull this function because we really don't need a dtm or something like that and
+## then flatening or summarize it. So, the vocabulary it's computationally cheaper and give us
+## exactly what we need: the overall frecuencies of the tokens.
 
 countTokens <- function(x, n){
         library(text2vec)
+        ## Because of the cleaning tha we have done so far, the tokenization have to split
+        ## by space: space_tokenizer
         tok_fun = space_tokenizer
         it_train = itoken(x, tokenizer = tok_fun, progressbar = TRUE)
         vocab = create_vocabulary(it_train, ngram = c(ngram_min = n, ngram_max = n))
 }
-## It could looks like a ugly way to do it, but I don't code a loop because I've to restart RStudio
-## each time to free RAM
+## It could looks like a ugly way to do it, but I don't write a loop because I've to restart RStudio
+## each time to get free RAM (I didn't get a way to avoid the colapse of the pc because the lack of
+## available RAM)
+
 ## Twitter n-grams
 setwd("~/Documents/finalCapstone/datasets/train")
 x <- readRDS("./tRDS")
 
-v <- countTokens(x, 2)
+v <- countTokens(x, 1)
 saveRDS(v$vocab[, 1:2], "./t1gRDS")
 
-v <- countTokens(x, 3)
+v <- countTokens(x, 2)
 saveRDS(v$vocab[, 1:2], "./t2gRDS")
 
-v <- countTokens(x, 4)
+v <- countTokens(x, 3)
 saveRDS(v$vocab[, 1:2], "./t3gRDS")
 
 ## Blogs n-grams
 setwd("~/Documents/finalCapstone/datasets/train")
 x <- readRDS("./bRDS")
 
-v <- countTokens(x, 2)
+v <- countTokens(x, 1)
 saveRDS(v$vocab[, 1:2], "./b1gRDS")
 
-v <- countTokens(x, 3)
+v <- countTokens(x, 2)
 saveRDS(v$vocab[, 1:2], "./b2gRDS")
 
-v <- countTokens(x, 4)
+v <- countTokens(x, 3)
 saveRDS(v$vocab[, 1:2], "./b3gRDS")
 
 ## News n-grams
 setwd("~/Documents/finalCapstone/datasets/train")
 x <- readRDS("./nRDS")
 
-v <- countTokens(x, 2)
+v <- countTokens(x, 1)
 saveRDS(v$vocab[, 1:2], "./n1gRDS")
 
-v <- countTokens(x, 3)
+v <- countTokens(x, 2)
 saveRDS(v$vocab[, 1:2], "./n2gRDS")
 
-v <- countTokens(x, 4)
+v <- countTokens(x, 3)
 saveRDS(v$vocab[, 1:2], "./n3gRDS")
 #######################################################################################
 ## Exploratory data analysis
@@ -226,6 +244,8 @@ bigramPruned <- bigram[, head(.SD, 3), by = t1]
 bigramPruned <- bigramPruned[order(bigramPruned$terms)]
 head(bigramPruned)
 dim(bigramPruned)[1] / dim(bigram)[1]
+format(object.size(bigram), units = "Mb") ## 959 Mb
+format(object.size(bigramPruned), units = "Mb") ## 86 Mb
 ## Plotting percentages and cumulative oercentages
 
 plot(t1$cumPerc[1:500000])
