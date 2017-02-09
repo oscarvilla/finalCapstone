@@ -192,18 +192,11 @@ saveRDS(v$vocab[, 1:2], "./n3gRDS")
 #######################################################################################
 ## Exploratory data analysis
 library(data.table)
-## Bigrams
+## Onegrams
 setwd("~/Documents/finalCapstone/datasets/train")
 t1 <- as.data.table(readRDS("./t1gRDS"))
 b1 <- as.data.table(readRDS("./b1gRDS"))
 n1 <- as.data.table(readRDS("./n1gRDS"))
-
-sizeObj <- data.frame(obj = c("t1", "b1", "n1"), 
-                      ntokens = c(dim(t1)[1], dim(b1)[1], dim(n1)[1]), 
-                      size = c(format(object.size(t1), units = "Mb"), 
-                               format(object.size(b1), units = "Mb"), 
-                               format(object.size(n1), units = "Mb")))
-sizeObj
 ## Featuring the percentage and the cumulative percentage
 featuring <- function(x){
         x <- setorder(x, -terms_counts)
@@ -214,12 +207,8 @@ featuring <- function(x){
 t1 <- featuring(t1)
 b1 <- featuring(b1)
 n1 <- featuring(n1)
-## Plotting some basics about the separate bigrams
-library(ggplot2)
-ggplot(t1[1:20, ], aes(x = reorder(terms, -terms_counts), y = terms_counts)) + geom_bar(stat = "identity")
-ggplot(b1[1:20, ], aes(x = reorder(terms, -terms_counts), y = terms_counts)) + geom_bar(stat = "identity")
-ggplot(n1[1:20, ], aes(x = reorder(terms, -terms_counts), y = terms_counts)) + geom_bar(stat = "identity")
 ## Let's get bind all the tokens and summarise to get the total number of times each token appears.
+
 bindup <- function(x, y, z){
 allOne <- rbind(x, y, z)
 print(paste("Initial number of tokens:", nrow(allOne), sep = " "))
@@ -231,53 +220,58 @@ allOne$cumPerc <- cumsum(allOne$perc)
 return(allOne)
 }
 
-bigram <- bindup(t1, b1, n1)
-ggplot(bigram[1:20, ], aes(x = reorder(terms, -total), y = total)) + geom_bar(stat = "identity")
+onegram <- bindup(t1, b1, n1)
+ggplot(onegram[1:20, ], aes(x = reorder(terms, -total), y = total)) + geom_bar(stat = "identity")
 
 
 ## 1. split the tokens with strsplit
 ## 2. Take the first part 
-t1 <- unlist(strsplit(bigram$terms, "_"))[seq(1, dim(bigram)[1] * 2 - 1, 2)]
-bigram$t1 <- t1
-## 3. 
+t1 <- unlist(strsplit(onegram$terms, "_"))[seq(1, dim(onegram)[1] * 2 - 1, 2)]
+onegram$t1 <- t1
+rm(list = c("t1", "b1", "n1", "sizeObj"))
+##############################################################################################
+## Bigrams
+t2 <- as.data.table(readRDS("./t2gRDS"))
+b2 <- as.data.table(readRDS("./b2gRDS"))
+n2 <- as.data.table(readRDS("./n2gRDS"))
+## Featuring the percentage and the cumulative percentage
+t2 <- featuring(t2)
+b2 <- featuring(b2)
+n2 <- featuring(n2)
+## Let's get bind all the tokens and summarise to get the total number of times each token appears.
+
+bigram <- bindup(t2, b2, n2)
+ggplot(bigram[1:20, ], aes(x = reorder(terms, -total), y = total)) + geom_bar(stat = "identity")
+
+## 1. split the tokens with strsplit and keep the first part
+t2 <- unlist(strsplit(bigram$terms, "_"))[seq(1, dim(bigram)[1] * 2 - 1, 2)]
+bigram$t1 <- t2
+## Let's define token-root as the token without its last word. i.e: for "of_the", its token-root
+## it's "of", for "of_the_year", it's "of_the".
+## When we are looking for predict, we take the phrase and prune it to no more than  two words. 
+## Then we look up for this two words, a bigram, the token-root and take the three more frequent  
+## trigrams which are conformated by it (the token-root), and extract its last word: they are the 
+## predicted words. If the phrase have no more than two words or if the token-root was not found or 
+## by any reason didn't give back a predicted word -according to stupid back-off model-, we got to 
+## look up a onegram token-root to give back the last word of the three more frequents bigrams which 
+## are composed by this onegram token-root.
+## For each one of the token-root there are bunches, too many of trigrams which are conformated by 
+## them, but I realize that we will use just the three more frequents.
+## Let's see how much bigrams there are for each token-root (onegram) 
+bigramCount <- bigram[, .N, by = t1]
+bigramCount <- setorder(bigramCount, -N)
+head(bigramCount)
+summary(bigramCount$N)
+## Let's take just the more frequent token-root: "the"
+head(bigram[t1=="the"], 10)
+## When we predict, we won't predict 88047 words, neither 10; we'll predict just the first three. 
+## So, we'll left out all but the three more frequent
 bigramPruned <- bigram[, head(.SD, 3), by = t1]
-bigramPruned <- bigramPruned[order(bigramPruned$terms)]
 head(bigramPruned)
+## The efficiency of this reductions can be seen by it self: the proportion of the pruned data frame
+## respect to the original one
 dim(bigramPruned)[1] / dim(bigram)[1]
+## in Mb
 format(object.size(bigram), units = "Mb") ## 959 Mb
 format(object.size(bigramPruned), units = "Mb") ## 86 Mb
-## Plotting percentages and cumulative oercentages
-
-plot(t1$cumPerc[1:500000])
-plot(b1$cumPerc[1:500000])
-plot(n1$cumPerc[1:500000])
-
-## More and less frequent tokens
-plot(head(setorder(t1, -terms_counts), 20)$cumPerc); head(setorder(b1, -terms_counts), 20); head(setorder(n1, -terms_counts), 20)
-tail(setorder(t1, -terms_counts), 20); tail(setorder(b1, -terms_counts), 20); tail(setorder(n1, -terms_counts), 20)
-
-library(ggplot2)
-
-
-
-
-
-
-#######################################################################################
-t2 <- readRDS("./t2gRDS")
-t3 <- readRDS("./t3gRDS")
-sizeObj <- data.frame(obj = c("t1", "t2", "t3"), 
-                      size = c(format(object.size(t1), units = "Mb"), 
-                               format(object.size(b), units = "Mb"), 
-                               format(object.size(t3), units = "Mb")))
-sizeObj
-library(data.table)
-head(setorder(t2, -terms_counts))
-tail(setorder(t2, -terms_counts))
-#######################################################################################
-## Shows the first element of each bigram
-unlist(strsplit(t1$terms[1:10], "_"))[seq(1, 19, 2)]
-## With the first one can make a datatable sd and keep the three more frecuent of each first element
-## Shows the second element of each bigram
-unlist(strsplit(t1$terms[1:10], "_"))[seq(2, 20, 2)]
 #######################################################################################
