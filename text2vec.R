@@ -204,9 +204,7 @@ featuring <- function(x){
         x$cumPerc <- cumsum(x$perc)
         return(x)
 }
-t1 <- featuring(t1)
-b1 <- featuring(b1)
-n1 <- featuring(n1)
+
 ## Let's get bind all the tokens and summarise to get the total number of times each token appears.
 
 bindup <- function(x, y, z){
@@ -221,31 +219,30 @@ return(allOne)
 }
 
 onegram <- bindup(t1, b1, n1)
+library(ggplot2)
 ggplot(onegram[1:20, ], aes(x = reorder(terms, -total), y = total)) + geom_bar(stat = "identity")
-
-
 ## 1. split the tokens with strsplit
 ## 2. Take the first part 
-t1 <- unlist(strsplit(onegram$terms, "_"))[seq(1, dim(onegram)[1] * 2 - 1, 2)]
-onegram$t1 <- t1
-rm(list = c("t1", "b1", "n1", "sizeObj"))
+onegram <- onegram[, c(1, 2)]
+## Save it
+saveRDS(onegram, "./onegramRDS")
+## Let's see how much it is loaded
+format(object.size(onegram), units = "Mb")
+## Clean space
+rm(list = c("t1", "b1", "n1"))
 ##############################################################################################
 ## Bigrams
 t2 <- as.data.table(readRDS("./t2gRDS"))
 b2 <- as.data.table(readRDS("./b2gRDS"))
 n2 <- as.data.table(readRDS("./n2gRDS"))
-## Featuring the percentage and the cumulative percentage
-t2 <- featuring(t2)
-b2 <- featuring(b2)
-n2 <- featuring(n2)
 ## Let's get bind all the tokens and summarise to get the total number of times each token appears.
 
 bigram <- bindup(t2, b2, n2)
 ggplot(bigram[1:20, ], aes(x = reorder(terms, -total), y = total)) + geom_bar(stat = "identity")
 
-## 1. split the tokens with strsplit and keep the first part
-t2 <- unlist(strsplit(bigram$terms, "_"))[seq(1, dim(bigram)[1] * 2 - 1, 2)]
-bigram$t1 <- t2
+## 1. split the tokens with strsplit and keep the first part or token-root
+root <- unlist(strsplit(bigram$terms, "_"))[seq(1, dim(bigram)[1] * 2 - 1, 2)]
+bigram$root <- root
 ## Let's define token-root as the token without its last word. i.e: for "of_the", its token-root
 ## it's "of", for "of_the_year", it's "of_the".
 ## When we are looking for predict, we take the phrase and prune it to no more than  two words. 
@@ -258,15 +255,15 @@ bigram$t1 <- t2
 ## For each one of the token-root there are bunches, too many of trigrams which are conformated by 
 ## them, but I realize that we will use just the three more frequents.
 ## Let's see how much bigrams there are for each token-root (onegram) 
-bigramCount <- bigram[, .N, by = t1]
+bigramCount <- bigram[, .N, by = root]
 bigramCount <- setorder(bigramCount, -N)
 head(bigramCount)
 summary(bigramCount$N)
 ## Let's take just the more frequent token-root: "the"
-head(bigram[t1=="the"], 10)
+head(bigram[root=="the"], 10)
 ## When we predict, we won't predict 88047 words, neither 10; we'll predict just the first three. 
 ## So, we'll left out all but the three more frequent
-bigramPruned <- bigram[, head(.SD, 3), by = t1]
+bigramPruned <- bigram[, head(.SD, 3), by = root]
 head(bigramPruned)
 ## The efficiency of this reductions can be seen by it self: the proportion of the pruned data frame
 ## respect to the original one
@@ -274,4 +271,59 @@ dim(bigramPruned)[1] / dim(bigram)[1]
 ## in Mb
 format(object.size(bigram), units = "Mb") ## 959 Mb
 format(object.size(bigramPruned), units = "Mb") ## 86 Mb
+## Drop it down some useless variables
+bigram <- bigramPruned[, c(2, 3, 1)]
+head(bigram)
+saveRDS(bigram, "./bigramRDS")
+## Also we'll need to keep the number of times each token-root appears to calculate later the probs.
+saveRDS(bigramCount, "./bigramCountRDS")
+rm(list = c("t2", "b2", "n2", "bigramPruned", "root"))
+#######################################################################################
+## Trigrams
+t2 <- as.data.table(readRDS("./t2gRDS"))
+b2 <- as.data.table(readRDS("./b2gRDS"))
+n2 <- as.data.table(readRDS("./n2gRDS"))
+## Let's get bind all the tokens and summarise to get the total number of times each token appears.
+
+bigram <- bindup(t2, b2, n2)
+ggplot(bigram[1:20, ], aes(x = reorder(terms, -total), y = total)) + geom_bar(stat = "identity")
+
+## 1. split the tokens with strsplit and keep the first part or token-root
+root <- unlist(strsplit(bigram$terms, "_"))[seq(1, dim(bigram)[1] * 2 - 1, 2)]
+bigram$root <- root
+## Let's define token-root as the token without its last word. i.e: for "of_the", its token-root
+## it's "of", for "of_the_year", it's "of_the".
+## When we are looking for predict, we take the phrase and prune it to no more than  two words. 
+## Then we look up for this two words, a bigram, the token-root and take the three more frequent  
+## trigrams which are conformated by it (the token-root), and extract its last word: they are the 
+## predicted words. If the phrase have no more than two words or if the token-root was not found or 
+## by any reason didn't give back a predicted word -according to stupid back-off model-, we got to 
+## look up a onegram token-root to give back the last word of the three more frequents bigrams which 
+## are composed by this onegram token-root.
+## For each one of the token-root there are bunches, too many of trigrams which are conformated by 
+## them, but I realize that we will use just the three more frequents.
+## Let's see how much bigrams there are for each token-root (onegram) 
+bigramCount <- bigram[, .N, by = root]
+bigramCount <- setorder(bigramCount, -N)
+head(bigramCount)
+summary(bigramCount$N)
+## Let's take just the more frequent token-root: "the"
+head(bigram[root=="the"], 10)
+## When we predict, we won't predict 88047 words, neither 10; we'll predict just the first three. 
+## So, we'll left out all but the three more frequent
+bigramPruned <- bigram[, head(.SD, 3), by = root]
+head(bigramPruned)
+## The efficiency of this reductions can be seen by it self: the proportion of the pruned data frame
+## respect to the original one
+dim(bigramPruned)[1] / dim(bigram)[1]
+## in Mb
+format(object.size(bigram), units = "Mb") ## 959 Mb
+format(object.size(bigramPruned), units = "Mb") ## 86 Mb
+## Drop it down some useless variables
+bigram <- bigramPruned[, c(2, 3, 1)]
+head(bigram)
+saveRDS(bigram, "./bigramRDS")
+## Also we'll need to keep the number of times each token-root appears to calculate later the probs.
+saveRDS(bigramCount, "./bigramCountRDS")
+rm(list = c("t2", "b2", "n2", "bigramPruned", "root"))
 #######################################################################################
