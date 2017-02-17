@@ -1,28 +1,37 @@
 library(data.table)
 setwd("~/Documents/finalCapstone/datasets/train")
-library(filehash)
-dbCreate("mydb")
-x <- dbInit("mydb")
-x$terms <- readRDS("./trigramRDS")
+trigram <- as.data.table(readRDS("./trigramRDS")$terms)
 
+library(parallel)
+# Calculate the number of cores
+no_cores <- detectCores() - 1
+
+# Initiate cluster
 library(foreach)
-## library(doParallel) ## Looks it's not working. Try with doMC
-library(doMC)
-registerDoMC(cores = 4)
-## Activate 4 clusters for parallelizing the work
-## cl <- makeCluster(4)
-## registerDoParallel(cl)
+library(doParallel)
+## Activate 3 clusters for parallelizing the work
+cl <- makeCluster(3)
+registerDoParallel(cl)
+makeForkCluster(nnodes = getOption("mc.cores", 3L))
 
-l <- nrow(x$terms) / 8
-x$terms$t <- rep(seq(1, 8, 1), l)
+x <- trigram
 
-root <- foreach(i=1:8, .combine = rbind, .packages = c("data.table")) %dopar% {
-        
-        root <- paste(unlist(strsplit(as.character(x$terms[x$terms$t==i, c("terms"), with = TRUE]), "_"))[seq(1, dim(x$terms[x$terms$t==i, c("terms"), with = TRUE])[1] * 3 - 2, 3)], 
-                      unlist(strsplit(x$terms[x$terms$t==i, c("terms"), with = TRUE], "_"))[seq(2, dim(x$terms[x$terms$t==i, c("terms"), with = TRUE])[1] * 3 - 1, 3)], sep = "_")
-}
+m <- nrow(x) * 3 - 1
+n <- nrow(x) * 3
+x$root <- parLapply(x, function(x) paste(unlist(strsplit(as.character(x), split = "_"))[seq(1, m, 3)], 
+                                      unlist(strsplit(as.character(x), split = "_"))[seq(2, m, 3)]))
 
 stopCluster(cl)
+
+
+
+root <- foreach(i=1:8, .combine = rbind, .packages = c("data.table")) %dopar% {
+        k <- x[t==i, c("V1"), with = FALSE]
+        root <- paste(apply(k, 1, FUN = function(x) strsplit(as.character(x), split = "_")[[1]][1]), 
+                      apply(k, 1, FUN = function(x) strsplit(as.character(x), split = "_")[[1]][2]))
+}
+
+
  
 
 #trigram <- as.data.table(readRDS("./trigramRDS"))
