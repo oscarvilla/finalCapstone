@@ -296,7 +296,159 @@ saveRDS(trigram, "./trigramRDS")
 ######################################################################################
 library(data.table)
 setwd("~/Documents/finalCapstone/datasets/train")
-trigram <- as.data.table(readRDS("./trigramRDS"))
+library(data.table)
+# 1. Import the data frame
+dt <- as.data.table(readRDS("./trigramRDS"))
+# 2. Create a factor to split by in chunks
+n <- 4 # How many chunks do you want
+dt$t <- seq(1, n, 1)
+head(dt, 18) 
+# 3. Split into chunks
+x <- split(dt, dt$t)
+# 4. Save the chunks as RDS
+# Get in a new dir
+setwd("~/Documents/finalCapstone/datasets/train/trigrams-parts")
+saveRDS(x[[1]], "./trigram1RDS")
+saveRDS(x[[2]], "./trigram2RDS")
+saveRDS(x[[3]], "./trigram3RDS")
+saveRDS(x[[4]], "./trigram4RDS")
+######################################################################################
+library(data.table)
+setwd("~/Documents/finalCapstone/datasets/train/trigrams-parts")
+dt <- as.data.table(readRDS("./trigram1RDS"))
+dt <- dt[, -c("t"), with = FALSE] ## Drop down one useless col
+
+y <- dt$terms
+
+library(parallel)
+cl <- makeCluster(4)
+
+root <- as.data.table(parLapply(cl, y, 
+                                function(y) paste(sapply(strsplit(y, split = "_"),'[',1), 
+                                                  sapply(strsplit(y,split= "_"),'[',2), sep = "_")))
+dt$root <- unlist(root)
+trigramCount <- dt[, .N, by = root]
+rm(list = c("root", "y"))
+trigramCount <- setorder(trigramCount, -N)
+head(trigramCount)
+summary(trigramCount$N)
+trigramPruned <- dt[, head(.SD, 3), by = root]
+head(trigramPruned)
+dim(trigramPruned)[1] / dim(dt)[1]
+format(object.size(trigramPruned), units = "Mb")
+format(object.size(dt), units = "Mb")
+saveRDS(trigramCount, "./trigramCount1RDS")
+saveRDS(trigramPruned, "./trigramPruned1RDS")
+stopCluster(cl)
+######################################################################################
+library(data.table)
+setwd("~/Documents/finalCapstone/datasets/train/trigrams-parts")
+dt <- as.data.table(readRDS("./trigram2RDS"))
+dt <- dt[, -c("t"), with = FALSE] ## Drop down one useless col
+
+y <- dt$terms
+
+library(parallel)
+cl <- makeCluster(4)
+
+root <- as.data.table(parLapply(cl, y, 
+                                function(y) paste(sapply(strsplit(y, split = "_"),'[',1), 
+                                                  sapply(strsplit(y,split= "_"),'[',2), sep = "_")))
+dt$root <- unlist(root)
+trigramCount <- dt[, .N, by = root]
+rm(list = c("root", "y"))
+trigramCount <- setorder(trigramCount, -N)
+head(trigramCount)
+summary(trigramCount$N)
+trigramPruned <- dt[, head(.SD, 3), by = root]
+head(trigramPruned)
+dim(trigramPruned)[1] / dim(dt)[1]
+format(object.size(trigramPruned), units = "Mb")
+format(object.size(dt), units = "Mb")
+saveRDS(trigramCount, "./trigramCount2RDS")
+saveRDS(trigramPruned, "./trigramPruned2RDS")
+stopCluster(cl)
+######################################################################################
+library(data.table)
+setwd("~/Documents/finalCapstone/datasets/train/trigrams-parts")
+dt <- as.data.table(readRDS("./trigram3RDS"))
+dt <- dt[, -c("t"), with = FALSE] ## Drop down one useless col
+
+y <- dt$terms
+
+library(parallel)
+cl <- makeCluster(4)
+
+root <- as.data.table(parLapply(cl, y, 
+                                function(y) paste(sapply(strsplit(y, split = "_"),'[',1), 
+                                                  sapply(strsplit(y,split= "_"),'[',2), sep = "_")))
+dt$root <- unlist(root)
+trigramCount <- dt[, .N, by = root]
+rm(list = c("root", "y"))
+trigramCount <- setorder(trigramCount, -N)
+head(trigramCount)
+summary(trigramCount$N)
+trigramPruned <- dt[, head(.SD, 3), by = root]
+head(trigramPruned)
+dim(trigramPruned)[1] / dim(dt)[1]
+format(object.size(trigramPruned), units = "Mb")
+format(object.size(dt), units = "Mb")
+saveRDS(trigramCount, "./trigramCount3RDS")
+saveRDS(trigramPruned, "./trigramPruned3RDS")
+stopCluster(cl)
+######################################################################################
+library(data.table)
+setwd("~/Documents/finalCapstone/datasets/train/trigrams-parts")
+dt <- as.data.table(readRDS("./trigram4RDS"))
+dt <- dt[, -c("t"), with = FALSE] ## Drop down one useless col
+
+y <- dt$terms
+
+library(parallel)
+cl <- makeCluster(4)
+
+root <- as.data.table(parLapply(cl, y, 
+                                function(y) paste(sapply(strsplit(y, split = "_"),'[',1), 
+                                                  sapply(strsplit(y,split= "_"),'[',2), sep = "_")))
+dt$root <- unlist(root)
+trigramCount <- dt[, .N, by = root]
+rm(list = c("root", "y"))
+trigramCount <- setorder(trigramCount, -N)
+head(trigramCount)
+summary(trigramCount$N)
+trigramPruned <- dt[, head(.SD, 3), by = root]
+head(trigramPruned)
+dim(trigramPruned)[1] / dim(dt)[1]
+format(object.size(trigramPruned), units = "Mb")
+format(object.size(dt), units = "Mb")
+saveRDS(trigramCount, "./trigramCount4RDS")
+saveRDS(trigramPruned, "./trigramPruned4RDS")
+stopCluster(cl)
+######################################################################################
+## compare the four prunneds, rbind them and prune again
+## Read all the four pruned
+library(data.table)
+setwd("~/Documents/finalCapstone/datasets/train/trigrams-parts")
+t1 <- readRDS("./trigramPruned1RDS")
+t2 <- readRDS("./trigramPruned2RDS")
+t3 <- readRDS("./trigramPruned3RDS")
+t4 <- readRDS("./trigramPruned4RDS")
+## Joint them rbind
+dt <- rbind(t1, t2, t3, t4)
+format(object.size(dt), units = "Mb")
+format(object.size(t1), units = "Mb")
+rm(list = c("t1", "t2", "t3", "t4"))
+## To prune again
+trigramPruned <- dt[, head(.SD, 3), by = root]
+head(trigramPruned, 30)
+format(object.size(trigramPruned), units = "Mb")
+trigramPruned2 <- trigramPruned[total > 1]
+format(object.size(trigramPruned2), units = "Mb")
+saveRDS(trigramPruned, "./trigramPrunedRDS")
+saveRDS(trigramPruned2, "./trigramsPruned2RDS")
+## We still need to rbind all the four trigramCountsXRDS and get the unique cases
+## something like dtTrigramCounts[unique(dtTrigramCounts$terms), ]
+######################################################################################
 ## 1. split the tokens with strsplit and keep the first part or token-root
 trigram$root <- paste(unlist(strsplit(trigram$terms, "_"))[seq(1, dim(trigram)[1] * 3 - 2, 3)], 
                       unlist(strsplit(trigram$terms, "_"))[seq(2, dim(trigram)[1] * 3 - 1, 3)], sep = "_")
