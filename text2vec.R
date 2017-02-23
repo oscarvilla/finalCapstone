@@ -446,45 +446,13 @@ trigramPruned2 <- trigramPruned[total > 1]
 format(object.size(trigramPruned2), units = "Mb")
 saveRDS(trigramPruned, "./trigramPrunedRDS")
 saveRDS(trigramPruned2, "./trigramsPruned2RDS")
-## We still need to rbind all the four trigramCountsXRDS and get the unique cases
-## something like dtTrigramCounts[unique(dtTrigramCounts$terms), ]
-######################################################################################
-## 1. split the tokens with strsplit and keep the first part or token-root
-trigram$root <- paste(unlist(strsplit(trigram$terms, "_"))[seq(1, dim(trigram)[1] * 3 - 2, 3)], 
-                      unlist(strsplit(trigram$terms, "_"))[seq(2, dim(trigram)[1] * 3 - 1, 3)], sep = "_")
-## Let's define token-root as the token without its last word. i.e: for "of_the", its token-root
-## it's "of", for "of_the_year", it's "of_the".
-## When we are looking for predict, we take the phrase and prune it to no more than  two words. 
-## Then we look up for this two words, a bigram, the token-root and take the three more frequent  
-## trigrams which are conformated by it (the token-root), and extract its last word: they are the 
-## predicted words. If the phrase have no more than two words or if the token-root was not found or 
-## by any reason didn't give back a predicted word -according to stupid back-off model-, we got to 
-## look up a onegram token-root to give back the last word of the three more frequents bigrams which 
-## are composed by this onegram token-root.
-## For each one of the token-root there are bunches, too many of trigrams which are conformated by 
-## them, but I realize that we will use just the three more frequents.
-## Let's see how much bigrams there are for each token-root (onegram) 
-trigramCount <- trigram[, .N, by = root]
-trigramCount <- setorder(trigramCount, -N)
-head(trigramCount)
-summary(trigramCount$N)
-## Let's take just the more frequent token-root: "the"
-head(trigram[root=="one_of"], 10)
-## When we predict, we won't predict 88047 words, neither 10; we'll predict just the first three. 
-## So, we'll left out all but the three more frequent
-trigramPruned <- trigram[, head(.SD, 3), by = root]
-head(trigramPruned)
-## The efficiency of this reductions can be seen by it self: the proportion of the pruned data frame
-## respect to the original one
-dim(trigramPruned)[1] / dim(trigram)[1]
-## in Mb
-format(object.size(trigram), units = "Mb") ## 959 Mb
-format(object.size(trigramPruned), units = "Mb") ## 86 Mb
-## Drop it down some useless variables
-trigram <- trigramPruned[, c(2, 3, 1)]
-head(trigram)
-saveRDS(trigram, "./trigramRDS")
-## Also we'll need to keep the number of times each token-root appears to calculate later the probs.
-saveRDS(trigramCount, "./trigramCountRDS")
-rm(list = c("t2", "b2", "n2", "trigramPruned", "root"))
-#######################################################################################
+trigramCount1 <- as.data.table(readRDS("./datasets/train/trigrams-parts/trigramCount1RDS"))
+trigramCount2 <- as.data.table(readRDS("./datasets/train/trigrams-parts/trigramCount2RDS"))
+trigramCount3 <- as.data.table(readRDS("./datasets/train/trigrams-parts/trigramCount3RDS"))
+trigramCount4 <- as.data.table(readRDS("./datasets/train/trigrams-parts/trigramCount4RDS"))
+
+t <- rbind(trigramCount1, trigramCount2, trigramCount3, trigramCount4)
+t <- t[, .(total = sum(N)), by = .(root)]
+saveRDS(t, "./trigramCountRDS")
+
+format(object.size(bigramCount), units = "Mb")

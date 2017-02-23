@@ -1,29 +1,30 @@
 library(data.table)
 setwd("~/Documents/finalCapstone/datasets/train")
-trigram <- as.data.table(readRDS("./trigramRDS")$terms)
-
+library(data.table)
+# 1. Import the data frame
+dt <- as.data.table(readRDS("./trigramRDS"))
+# 2. Create a factor to split by in chunks
+n <- 4 # How many chunks do you want
+dt$t <- seq(1, n, 1)
+head(dt, 18) 
+# 3. Split into chunks
+x <- split(dt, dt$t)
+# 4. Save the chunks as RDS
+# Get in a new dir
+setwd("~/Documents/finalCapstone/datasets/train/trigrams-parts")
+saveRDS(x[[1]], "./trigram1RDS")
+saveRDS(x[[2]], "./trigram2RDS")
+saveRDS(x[[3]], "./trigram3RDS")
+saveRDS(x[[4]], "./trigram4RDS")
+################################################################
 library(parallel)
-
-# Calculate the number of cores
-no_cores <- detectCores() - 1
-
-# Initiate cluster
-cl <- makeCluster(no_cores)
-
-x <- trigram[1:10000000]
-
-m <- nrow(x) * 3 - 1
-n <- nrow(x) * 3
-x$root <- parLapply(cl, x, function(x) paste(unlist(strsplit(as.character(x), split = "_"))[seq(1, 29999999, 3)], 
-                                      unlist(strsplit(as.character(x), split = "_"))[seq(2, 30000000, 3)], 
-                                      sep = "_"))
-
-stopCluster(cl)
-
-####################################################################################################
-root <- foreach(i=1:8, .combine = rbind, .packages = c("data.table")) %dopar% {
-        k <- x[t==i, c("V1"), with = FALSE]
-        root <- paste(apply(k, 1, FUN = function(x) strsplit(as.character(x), split = "_")[[1]][1]), 
-                      apply(k, 1, FUN = function(x) strsplit(as.character(x), split = "_")[[1]][2]))
+cl <- makeCluster(4)
+# here we can star a for loop and iterate by i
+root <- data.table()
+for(i in 1:n){
+        y <- dt$terms
+        root <- as.data.table(parLapply(cl, y, function(y) paste(sapply(strsplit(y, split = "_"),'[',1), 
+                                                                 sapply(strsplit(y,split= "_"),'[',2), sep = "_")))
+        root <- rbind(root, temp)
+        
 }
-####################################################################################################
