@@ -63,15 +63,31 @@ setwd("~/Documents/finalCapstone/datasets/model")
 dm1 <- cleaner(readLines("./ttm.txt"))
 dm2 <- cleaner(readLines("./bbm.txt"))
 dm3 <- cleaner(readLines("./nnm.txt"))
-
+dm <- as.character(rbind(as.vector(dm1), as.vector(dm2), as.vector(dm3)))
 
 sapply(strsplit(as.character(dm1[1:3]), " "), tail, 3)
+saveRDS(dm, "./dmRDS")
+##############################################################################
+setwd("~/Documents/finalCapstone/datasets/model")
+df <- readRDS("./dmRDS")
+library(data.table)
 
-rootSearch <- sapply(strsplit(as.character(dm1[1:3]), " "), tail, 3)[1:2,]
-response <- sapply(strsplit(as.character(dm1[1:3]), " "), tail, 3)[3, ]
+x <- df[1:10000]
+x <- x[sapply(gregexpr("\\S+", x), length) > 2] ## erase the phrases with less than two words
+                                                ## This makes mess me
+library(parallel)
 
-dt <- data.table()
-for(i in 1:3){
-        t <- paste(rootSearch[, 1], "_")
-        dt <- rbind
-}
+# Calculate the number of cores
+no_cores <- detectCores() - 1
+
+# Initiate cluster
+cl <- makeCluster(no_cores)
+
+
+r <- parApply(cl = cl, sapply(strsplit(as.character(x), " "), tail, 3)[1:2,], 2, 
+           function(x) {y <- paste(x[1], x[2], sep = "_")})
+y <- sapply(strsplit(as.character(x), " "), tail, 3)[3, ]
+
+stopCluster(cl)
+
+##########################################################################
