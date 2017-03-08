@@ -4,8 +4,8 @@ library(data.table)
 onegram <- as.data.table(readRDS("./onegramTidyRDS"))
 bigram <- as.data.table(readRDS("./bigramTidyRDS"))
 trigram <- as.data.table(readRDS("./trigramTidyRDS"))
-bigramCount <- as.data.table(readRDS("./bigramCountRDS"))
-trigramCount <- as.data.table(readRDS("./trigramCountRDS"))
+## bigramCount <- as.data.table(readRDS("./bigramCountRDS"))## If we won't calculate freq, we don't need it
+## trigramCount <- as.data.table(readRDS("./trigramCountRDS"))
 ##########################################################################
 ## Match engine algo
 candidates <- function(phrase = ""){
@@ -13,13 +13,13 @@ candidates <- function(phrase = ""){
         p2 <- sapply(strsplit(as.character(p1), "_"), tail, 1)
         
         tri <- data.table(terms = trigram[root == p1]$terms, 
-                        fre = trigram[root == p1]$total / trigramCount[root == p1]$total)
+                        fre = trigram[root == p1]$total)
         
         bi <- data.table(terms = bigram[root == p2]$terms, 
-                        fre = bigram[root == p2]$total / bigramCount[root == p2]$N)
+                        fre = bigram[root == p2]$total)
         o <- onegram
         
         response <- rbind(tri, bi, o)
-        
+        response <- setorder(response, -fre)
         return(response$terms)
 }

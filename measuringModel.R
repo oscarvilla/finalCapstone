@@ -1,15 +1,17 @@
 f <- data.table()
-n <- 9495
-for(i in 1:n){
+n <- length(x)
+
+library(foreach)
+library(parallel)
+library(doParallel)
+registerDoParallel(cores=detectCores(all.tests=TRUE))
+
+predict <- foreach(i=1:n, .combine = rbind) %dopar% {
         v <- r[i]
         k <- candidates(v)
         t <- cbind(y1 = k[1], y2 = k[2], y3 = k[3], y = y[i])
         f <- rbind(f, t)
 }
-f$r <- (f$y1 == f$y || f$y2 == f$y || f$y3 == f$y) * 1
-sum(f$r) / n
-
-
-
-
-rm(list = c("t", "f", "i", "k", "v"))
+predict2 <- predict
+predict2$r <- (predict2$y1 == predict2$y | predict2$y2 == predict2$y | predict2$y3 == predict2$y) * 1
+sum(predict2$r) / n

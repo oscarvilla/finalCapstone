@@ -8,6 +8,7 @@ onegram <- data.table(terms = onegram[1:3],
                       fre = onegram[1:3]$total / n * 0.4 * 0.4)
 onegram <- onegram[, c(1, 3)]
 names(onegram) <- c("terms", "fre")
+
 ##format(object.size(onegram), units = "Mb")
 ##head(onegram)
 ## Bigram with counter
@@ -15,16 +16,29 @@ bigram <- as.data.table(readRDS("./datasets/train/bigramRDS"))
 ##format(object.size(bigram), units = "Mb")
 ##head(bigram)
 bigramCount <- as.data.table(readRDS("./datasets/train/bigramCountRDS"))
+y <- bigram$terms
+bigram$terms <- sapply(strsplit(as.character(y), "_"), tail, 1)
+setwd("~/Documents/finalCapstone/datasets/train")
+saveRDS(bigram, "./bigramTidyRDS")
+rm(list = c("n", "y"))
+########################################################################
 ##format(object.size(bigramCount), units = "Mb")
 ##head(bigramCount)
 ## Trigram with counter
+setwd("~/Documents/finalCapstone")
 trigram <- as.data.table(readRDS("./datasets/train/trigrams-parts/trigramPruned2RDS"))
 ##format(object.size(trigram), units = "Mb")
 ##head(trigram)
 trigram <- trigram[, c(2, 3, 1), with = FALSE]
 trigramCount <- as.data.table(readRDS("./datasets/train/trigrams-parts/trigramCountRDS"))
+y <- trigram$terms
+trigram$terms <- sapply(strsplit(as.character(y), "_"), tail, 1)
+saveRDS(trigram, "./trigramTidyRDS")
 ##format(object.size(trigramCount), units = "Mb")
 ##head(trigramCount)
+##########################################################################################
+## Tidying datasets
+
 ##########################################################################################
 ## Searching algo
 candidates <- function(phrase = ""){
@@ -34,7 +48,7 @@ candidates <- function(phrase = ""){
         x <- data.table(terms = trigram[root == p1]$terms, 
                         fre = trigram[root == p1]$total / trigramCount[root == p1]$total)
         y <- data.table(terms = bigram[root == p2]$terms, 
-                        fre = bigram[root == p2]$total / bigramCount[root == p2]$N * 0.4)
+                        fre = bigram[root == p2]$total / bigramCount[root == p2]$N)
         z <- onegram
         
         df <- rbind(x, y, z)
